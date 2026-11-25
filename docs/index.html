@@ -149,8 +149,18 @@
       border: 1px solid var(--border);
       font-size: 13px;
       padding: 7px 12px;
+      text-decoration: none;
     }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-nav {
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      font-size: 13px;
+      padding: 7px 12px;
+      text-decoration: none;
+    }
+    .btn-nav:hover { background: rgba(56, 189, 248, 0.24); }
 
     .auth-footer {
       margin-top: 14px;
@@ -442,6 +452,7 @@
         <div class="header-meta" id="metaInfo">数据来源：中国天气网（每日 08:00 / 20:00 自动采集去重）</div>
       </div>
       <div class="header-actions">
+        <a href="./monthly.html" class="btn btn-nav">📅 月度统计 →</a>
         <button class="btn btn-ghost" onclick="refreshData()">↻ 刷新</button>
         <button class="btn btn-ghost" onclick="exportCSV()">⬇ 导出 CSV</button>
         <button class="btn btn-ghost" onclick="logout()">退出 / 清除凭证</button>

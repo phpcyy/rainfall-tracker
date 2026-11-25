@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>月度降雨统计 · 降雨量监测看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-soft: #263449;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --xuchang: #38bdf8;
+      --xiangcheng: #34d399;
+      --minhang: #a78bfa;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top left, #172554 0%, var(--bg) 52%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Auth Gate */
+    .auth-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+    }
+
+    .auth-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .auth-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+    .error-msg {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.14);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+      font-size: 13px;
+      display: none;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: #fff;
+      width: 100%;
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-ghost {
+      background: var(--surface-soft);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      padding: 7px 12px;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-nav {
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      font-size: 13px;
+      padding: 7px 12px;
+    }
+    .btn-nav:hover { background: rgba(56, 189, 248, 0.24); }
+
+    /* Main App */
+    .app {
+      display: none;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 20px 16px 48px;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; }
+    .header-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .toolbar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .month-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .month-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .month-pill {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .month-pill:hover, .month-pill.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.14);
+    }
+
+    .city-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .city-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .city-pill.active { border-color: currentColor; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, var(--accent));
+    }
+    .kpi-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .kpi-city { font-size: 15px; font-weight: 700; }
+    .kpi-sub { font-size: 12px; color: var(--muted); }
+    .kpi-main { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px; }
+    .kpi-main span { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+    .kpi-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      font-size: 12px;
+    }
+    .kpi-stats .label { color: var(--muted); display: block; }
+    .kpi-stats .val { font-weight: 600; margin-top: 2px; }
+
+    /* Charts */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .chart-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .chart-title { font-size: 15px; font-weight: 700; }
+    .chart-hint { font-size: 12px; color: var(--muted); }
+    .chart-box { width: 100%; height: 340px; }
+
+    .section-divider {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 22px 0 12px;
+    }
+    .section-divider h2 { font-size: 17px; font-weight: 700; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    th { color: var(--muted); font-weight: 600; background: rgba(15, 23, 42, 0.5); }
+    tr:hover td { background: rgba(56, 189, 248, 0.05); }
+    tr.month-row-active td { background: rgba(56, 189, 248, 0.12); }
+    tr.clickable { cursor: pointer; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .lv-none { background: #334155; color: #cbd5e1; }
+    .lv-light { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; }
+    .lv-moderate { background: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
+    .lv-heavy { background: rgba(251, 191, 36, 0.2); color: #fde68a; }
+    .lv-storm { background: rgba(248, 113, 113, 0.25); color: #fca5a5; }
+    .muted-sm { color: var(--muted); font-size: 11px; margin-left: 4px; }
+
+    @media (max-width: 640px) {
+      .chart-box { height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Gate (shares localStorage with index.html) -->
+  <div id="authGate" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-title">📅 月度降雨统计</div>
+      <div class="auth-subtitle">数据经 AES-256-GCM 加密保护，请输入访问密码解锁查看</div>
+
+      <form id="passwordForm" onsubmit="loginWithPassword(event)">
+        <div class="field">
+          <label for="encPassword">访问密码</label>
+          <input id="encPassword" type="password" placeholder="请输入访问密码" autocomplete="current-password" required />
+        </div>
+        <label class="checkbox-row">
+          <input id="pwdRemember" type="checkbox" checked />
+          在当前浏览器记住密码（与日度看板共享登录状态）
+        </label>
+        <button type="submit" class="btn btn-primary" id="pwdSubmitBtn">解锁查看</button>
+      </form>
+
+      <div id="authError" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- Main Monthly App -->
+  <div id="app" class="app">
+    <div class="header">
+      <div>
+        <h1>📅 月度降雨量统计与明细</h1>
+        <div class="header-meta" id="metaInfo">数据来源：中国天气网</div>
+      </div>
+      <div class="header-actions">
+        <a href="./index.html" class="btn btn-nav">← 返回日度看板</a>
+        <button class="btn btn-ghost" onclick="refreshData()">↻ 刷新</button>
+        <button class="btn btn-ghost" onclick="exportMonthlySummaryCSV()">⬇ 导出月度汇总 CSV</button>
+        <button class="btn btn-ghost" onclick="logout()">退出</button>
+      </div>
+    </div>
+
+    <!-- Year & City Bar -->
+    <div class="toolbar">
+      <div class="month-nav">
+        <select id="yearSelect" onchange="onYearChange()"></select>
+        <button class="btn btn-ghost" onclick="stepMonth(-1)">◀ 上月</button>
+        <button class="btn btn-ghost" onclick="stepMonth(1)">下月 ▶</button>
+        <div class="month-pills" id="monthPills"></div>
+      </div>
+      <div class="city-group" id="cityToggles"></div>
+    </div>
+
+    <!-- Annual Monthly Comparison Chart -->
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title" id="yearChartTitle">各月降雨量对比（mm）</div>
+          <div class="chart-hint">点击任意月份柱子，下方将立即切换到该月统计与逐日明细</div>
+        </div>
+      </div>
+      <div id="monthlyOverviewChart" class="chart-box"></div>
+    </div>
+
+    <!-- Monthly Summary Table -->
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title" id="monthlySummaryTitle">月度汇总表</div>
+        <div class="chart-hint">点击任意行可快速切换到对应月份</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>月份</th>
+              <th>许昌市</th>
+              <th>襄城县</th>
+              <th>闵行区</th>
+            </tr>
+          </thead>
+          <tbody id="monthlySummaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Selected Month Detail Section -->
+    <div class="section-divider">
+      <h2 id="selectedMonthHeading">当月详情</h2>
+      <button class="btn btn-ghost" onclick="exportSelectedMonthDailyCSV()">⬇ 导出本月逐日 CSV</button>
+    </div>
+
+    <div class="kpi-grid" id="monthKpiGrid"></div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title" id="monthDailyChartTitle">本月每日降雨量分布（mm）</div>
+          <div class="chart-hint">展示所选月份内每一天的降雨量变化</div>
+        </div>
+      </div>
+      <div id="monthDailyChart" class="chart-box"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title" id="monthDetailTableTitle">本月逐日明细</div>
+        <div class="chart-hint" id="monthDetailCountHint"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>许昌市</th>
+              <th>襄城县</th>
+              <th>闵行区</th>
+            </tr>
+          </thead>
+          <tbody id="monthDetailBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "rainfall_auth_v1";
+    const CITY_ORDER = ["xuchang", "xiangcheng", "minhang"];
+    const CITY_META = {
+      xuchang: { name: "许昌市", color: "#38bdf8" },
+      xiangcheng: { name: "襄城县", color: "#34d399" },
+      minhang: { name: "闵行区", color: "#a78bfa" },
+    };
+
+    let rawData = null;
+    let currentAuth = null;
+    let activeCities = new Set(CITY_ORDER);
+    let selectedYear = null;
+    let selectedMonth = null; // "YYYY-MM"
+    let charts = {};
+
+    function showAuthError(msg) {
+      const el = document.getElementById("authError");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function b64ToBytes(b64) {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    async function decryptBundle(bundle, password) {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+      );
+      const aesKey = await crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: b64ToBytes(bundle.salt),
+          iterations: bundle.iterations || 200000,
+          hash: "SHA-256",
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      const plainBuf = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: b64ToBytes(bundle.iv) },
+        aesKey,
+        b64ToBytes(bundle.ciphertext)
+      );
+      return JSON.parse(new TextDecoder().decode(plainBuf));
+    }
+
+    async function fetchEncryptedAndDecrypt(password) {
+      const resp = await fetch(`./data.enc.json?t=${Date.now()}`);
+      if (!resp.ok) throw new Error(`加载数据包失败（HTTP ${resp.status}）`);
+      const bundle = await resp.json();
+      try {
+        return await decryptBundle(bundle, password);
+      } catch {
+        throw new Error("访问密码错误，无法解密数据。");
+      }
+    }
+
+    async function loginWithPassword(event) {
+      event.preventDefault();
+      document.getElementById("authError").style.display = "none";
+      const password = document.getElementById("encPassword").value;
+      const remember = document.getElementById("pwdRemember").checked;
+      const btn = document.getElementById("pwdSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "正在解密...";
+      try {
+        const data = await fetchEncryptedAndDecrypt(password);
+        currentAuth = { mode: "password", password };
+        if (remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(currentAuth));
+        else localStorage.removeItem(STORAGE_KEY);
+        enterDashboard(data);
+      } catch (err) {
+        showAuthError(err.message || String(err));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "解锁查看";
+      }
+    }
+
+    async function refreshData() {
+      if (!currentAuth?.password) return;
+      try {
+        rawData = await fetchEncryptedAndDecrypt(currentAuth.password);
+        updateMetaInfo();
+        renderAll();
+      } catch (err) {
+        alert("刷新失败：" + (err.message || String(err)));
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem(STORAGE_KEY);
+      currentAuth = null;
+      rawData = null;
+      document.getElementById("app").style.display = "none";
+      document.getElementById("authGate").style.display = "flex";
+    }
+
+    function getAvailableYears() {
+      const years = new Set((rawData.dates || []).map(d => d.slice(0, 4)));
+      return [...years].sort();
+    }
+
+    function getMonthsForYear(year) {
+      const months = new Set(
+        (rawData.dates || []).filter(d => d.startsWith(year + "-")).map(d => d.slice(0, 7))
+      );
+      return [...months].sort();
+    }
+
+    function getDatesForMonth(ym) {
+      return (rawData.dates || []).filter(d => d.startsWith(ym + "-"));
+    }
+
+    function aggregateMonth(ym) {
+      const dates = getDatesForMonth(ym);
+      const summary = {};
+      CITY_ORDER.forEach(cityKey => {
+        let total = 0;
+        let rainDays = 0;
+        let rainHours = 0;
+        let recordedHours = 0;
+        let maxDayVal = 0;
+        let maxDayDate = "-";
+        let daysCount = 0;
+
+        dates.forEach(d => {
+          const rec = rawData.records?.[d]?.[cityKey];
+          if (!rec) return;
+          daysCount += 1;
+          total += rec.total_mm || 0;
+          if ((rec.total_mm || 0) > 0) rainDays += 1;
+          rainHours += rec.rain_hours || 0;
+          recordedHours += rec.recorded_hours || 0;
+          if ((rec.total_mm || 0) >= maxDayVal && (rec.total_mm || 0) > 0) {
+            maxDayVal = rec.total_mm;
+            maxDayDate = d;
+          }
+        });
+
+        const coverage = daysCount ? Math.min(100, Math.round((recordedHours / (daysCount * 24)) * 100)) : 0;
+        summary[cityKey] = {
+          total_mm: Number(total.toFixed(1)),
+          rain_days: rainDays,
+          days_count: daysCount,
+          rain_hours: rainHours,
+          max_day_mm: Number(maxDayVal.toFixed(1)),
+          max_day_date: maxDayDate,
+          coverage,
+        };
+      });
+      return summary;
+    }
+
+    function enterDashboard(data) {
+      rawData = data;
+      document.getElementById("authGate").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      updateMetaInfo();
+
+      const years = getAvailableYears();
+      selectedYear = years[years.length - 1];
+      const months = getMonthsForYear(selectedYear);
+      selectedMonth = months[months.length - 1];
+
+      populateYearSelect();
+      initCityToggles();
+      renderAll();
+    }
+
+    function updateMetaInfo() {
+      const dates = rawData.dates || [];
+      const span = dates.length ? `${dates[0]} 至 ${dates[dates.length - 1]}（共 ${dates.length} 天）` : "暂无数据";
+      document.getElementById("metaInfo").textContent =
+        `最后更新：${rawData.updated_at || "-"} ｜ 历史范围：${span}`;
+    }
+
+    function populateYearSelect() {
+      const sel = document.getElementById("yearSelect");
+      sel.innerHTML = "";
+      getAvailableYears().reverse().forEach(y => {
+        const opt = document.createElement("option");
+        opt.value = y;
+        opt.textContent = `${y} 年`;
+        sel.appendChild(opt);
+      });
+      sel.value = selectedYear;
+    }
+
+    function onYearChange() {
+      selectedYear = document.getElementById("yearSelect").value;
+      const months = getMonthsForYear(selectedYear);
+      selectedMonth = months[months.length - 1] || null;
+      renderAll();
+    }
+
+    function selectMonth(ym) {
+      selectedMonth = ym;
+      renderMonthPills();
+      renderMonthlySummaryTable();
+      renderSelectedMonthSection();
+    }
+
+    function stepMonth(delta) {
+      const months = getMonthsForYear(selectedYear);
+      const idx = months.indexOf(selectedMonth);
+      if (idx === -1) return;
+      const nextIdx = idx + delta;
+      if (nextIdx >= 0 && nextIdx < months.length) {
+        selectMonth(months[nextIdx]);
+      }
+    }
+
+    function initCityToggles() {
+      const container = document.getElementById("cityToggles");
+      container.innerHTML = "";
+      CITY_ORDER.forEach(key => {
+        const meta = CITY_META[key];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "city-pill" + (activeCities.has(key) ? " active" : "");
+        btn.style.color = activeCities.has(key) ? meta.color : "var(--muted)";
+        btn.innerHTML = `<span class="dot" style="background:${meta.color}"></span>${meta.name}`;
+        btn.onclick = () => {
+          if (activeCities.has(key) && activeCities.size === 1) return;
+          if (activeCities.has(key)) activeCities.delete(key);
+          else activeCities.add(key);
+          initCityToggles();
+          renderAll();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderMonthPills() {
+      const container = document.getElementById("monthPills");
+      container.innerHTML = "";
+      getMonthsForYear(selectedYear).forEach(ym => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "month-pill" + (ym === selectedMonth ? " active" : "");
+        btn.textContent = `${Number(ym.slice(5, 7))}月`;
+        btn.onclick = () => selectMonth(ym);
+        container.appendChild(btn);
+      });
+    }
+
+    function getChart(id) {
+      if (!charts[id]) charts[id] = echarts.init(document.getElementById(id));
+      return charts[id];
+    }
+
+    function getLevelClass(level) {
+      if (level === "无雨") return "lv-none";
+      if (level === "小雨") return "lv-light";
+      if (level === "中雨") return "lv-moderate";
+      if (level === "大雨") return "lv-heavy";
+      return "lv-storm";
+    }
+
+    function renderAll() {
+      renderMonthPills();
+      renderMonthlyOverviewChart();
+      renderMonthlySummaryTable();
+      renderSelectedMonthSection();
+    }
+
+    function renderMonthlyOverviewChart() {
+      const months = getMonthsForYear(selectedYear);
+      document.getElementById("yearChartTitle").textContent = `${selectedYear} 年各月降雨量对比（mm）`;
+      const monthAggs = Object.fromEntries(months.map(m => [m, aggregateMonth(m)]));
+
+      const series = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => ({
+        name: CITY_META[cityKey].name,
+        type: "bar",
+        barMaxWidth: 28,
+        itemStyle: { color: CITY_META[cityKey].color, borderRadius: [4, 4, 0, 0] },
+        data: months.map(m => monthAggs[m][cityKey].total_mm),
+      }));
+
+      const chart = getChart("monthlyOverviewChart");
+      chart.setOption({
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          backgroundColor: "#0f172a",
+          borderColor: "#334155",
+          textStyle: { color: "#f1f5f9" },
+          formatter: params => {
+            const ym = params[0]?.axisValue;
+            let html = `<div style="font-weight:700;margin-bottom:6px;">${ym}</div>`;
+            params.forEach(p => {
+              const cityKey = CITY_ORDER.find(k => CITY_META[k].name === p.seriesName);
+              const s = monthAggs[ym][cityKey];
+              html += `<div>${p.marker}${p.seriesName}: <b>${s.total_mm.toFixed(1)} mm</b> <span style="color:#94a3b8;font-size:11px;">（${s.rain_days}天降雨，峰值 ${s.max_day_mm}mm）</span></div>`;
+            });
+            return html;
+          },
+        },
+        legend: { top: 0, textStyle: { color: "#cbd5e1" } },
+        grid: { left: 48, right: 20, top: 40, bottom: 32 },
+        xAxis: {
+          type: "category",
+          data: months,
+          axisLine: { lineStyle: { color: "#475569" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        yAxis: {
+          type: "value",
+          name: "mm",
+          nameTextStyle: { color: "#94a3b8" },
+          splitLine: { lineStyle: { color: "#263449" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        series,
+      }, true);
+
+      chart.off("click");
+      chart.on("click", params => {
+        if (params.name) selectMonth(params.name);
+      });
+    }
+
+    function renderMonthlySummaryTable() {
+      const months = [...getMonthsForYear(selectedYear)].reverse();
+      document.getElementById("monthlySummaryTitle").textContent = `${selectedYear} 年月度汇总表`;
+      const tbody = document.getElementById("monthlySummaryBody");
+      tbody.innerHTML = "";
+
+      months.forEach(ym => {
+        const agg = aggregateMonth(ym);
+        const tr = document.createElement("tr");
+        tr.className = "clickable" + (ym === selectedMonth ? " month-row-active" : "");
+        tr.onclick = () => selectMonth(ym);
+
+        let html = `<td style="font-weight:700;">${ym}${ym === selectedMonth ? ' <span class="badge lv-light">当前选中</span>' : ""}</td>`;
+        CITY_ORDER.forEach(cityKey => {
+          const s = agg[cityKey];
+          if (!s.days_count) {
+            html += `<td class="muted-sm">-</td>`;
+          } else {
+            html += `<td>
+              <b>${s.total_mm.toFixed(1)} mm</b>
+              <span class="muted-sm">${s.rain_days}/${s.days_count}天 · 峰值 ${s.max_day_mm}mm</span>
+            </td>`;
+          }
+        });
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSelectedMonthSection() {
+      if (!selectedMonth) return;
+      const dates = getDatesForMonth(selectedMonth);
+      const agg = aggregateMonth(selectedMonth);
+
+      // Compute year total per city for share %
+      const yearTotals = {};
+      CITY_ORDER.forEach(c => {
+        yearTotals[c] = getMonthsForYear(selectedYear).reduce(
+          (sum, m) => sum + aggregateMonth(m)[c].total_mm, 0
+        );
+      });
+
+      document.getElementById("selectedMonthHeading").textContent = `📌 ${selectedMonth} 月度详情`;
+      document.getElementById("monthDailyChartTitle").textContent = `${selectedMonth} 每日降雨量分布（mm）`;
+      document.getElementById("monthDetailTableTitle").textContent = `${selectedMonth} 逐日明细`;
+      document.getElementById("monthDetailCountHint").textContent = `共 ${dates.length} 天记录`;
+
+      // KPI cards
+      const grid = document.getElementById("monthKpiGrid");
+      grid.innerHTML = "";
+      CITY_ORDER.filter(c => activeCities.has(c)).forEach(cityKey => {
+        const meta = CITY_META[cityKey];
+        const s = agg[cityKey];
+        const pct = yearTotals[cityKey] > 0 ? ((s.total_mm / yearTotals[cityKey]) * 100).toFixed(1) : "0.0";
+        const card = document.createElement("div");
+        card.className = "kpi-card";
+        card.style.setProperty("--card-accent", meta.color);
+        card.innerHTML = `
+          <div class="kpi-head">
+            <div class="kpi-city">${meta.name}</div>
+            <div class="kpi-sub">占当年 ${pct}% · 完整度 ${s.coverage}%</div>
+          </div>
+          <div class="kpi-main">${s.total_mm.toFixed(1)}<span>mm</span></div>
+          <div class="kpi-stats">
+            <div><span class="label">降雨天数</span><div class="val">${s.rain_days} / ${s.days_count} 天</div></div>
+            <div><span class="label">降雨小时</span><div class="val">${s.rain_hours} 小时</div></div>
+            <div><span class="label">单日峰值</span><div class="val">${s.max_day_mm > 0 ? s.max_day_mm.toFixed(1) + " mm" : "0 mm"}<div style="font-size:10px;color:var(--muted);font-weight:400;">${s.max_day_date}</div></div></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Month daily bar chart
+      const chart = getChart("monthDailyChart");
+      const series = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => ({
+        name: CITY_META[cityKey].name,
+        type: "bar",
+        barMaxWidth: 22,
+        itemStyle: { color: CITY_META[cityKey].color, borderRadius: [4, 4, 0, 0] },
+        data: dates.map(d => rawData.records?.[d]?.[cityKey]?.total_mm ?? 0),
+      }));
+
+      chart.setOption({
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          backgroundColor: "#0f172a",
+          borderColor: "#334155",
+          textStyle: { color: "#f1f5f9" },
+          formatter: params => {
+            const d = params[0]?.axisValue;
+            let html = `<div style="font-weight:700;margin-bottom:6px;">${d}</div>`;
+            params.forEach(p => {
+              const cityKey = CITY_ORDER.find(k => CITY_META[k].name === p.seriesName);
+              const rec = rawData.records?.[d]?.[cityKey];
+              const extra = rec ? `（${rec.level}，峰值 ${rec.max_hourly_mm}mm/h，${rec.recorded_hours}h）` : "";
+              html += `<div>${p.marker}${p.seriesName}: <b>${Number(p.value).toFixed(1)} mm</b> <span style="color:#94a3b8;font-size:11px;">${extra}</span></div>`;
+            });
+            return html;
+          },
+        },
+        legend: { top: 0, textStyle: { color: "#cbd5e1" } },
+        grid: { left: 46, right: 20, top: 40, bottom: 32 },
+        xAxis: {
+          type: "category",
+          data: dates,
+          axisLine: { lineStyle: { color: "#475569" } },
+          axisLabel: { color: "#94a3b8", formatter: v => v.slice(8) + "日" },
+        },
+        yAxis: {
+          type: "value",
+          name: "mm",
+          nameTextStyle: { color: "#94a3b8" },
+          splitLine: { lineStyle: { color: "#263449" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        series,
+      }, true);
+
+      // Month detail table
+      const tbody = document.getElementById("monthDetailBody");
+      tbody.innerHTML = "";
+      [...dates].reverse().forEach(d => {
+        const tr = document.createElement("tr");
+        let html = `<td style="font-weight:600;">${d}</td>`;
+        CITY_ORDER.forEach(cityKey => {
+          const rec = rawData.records?.[d]?.[cityKey];
+          if (!rec) {
+            html += `<td class="muted-sm">-</td>`;
+          } else {
+            html += `<td>
+              <b>${rec.total_mm.toFixed(1)} mm</b>
+              <span class="badge ${getLevelClass(rec.level)}">${rec.level}</span>
+              <span class="muted-sm">${rec.rain_hours}h雨 · 峰值${rec.max_hourly_mm}mm/h · ${rec.recorded_hours}h采</span>
+            </td>`;
+          }
+        });
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function downloadCSV(filename, rows) {
+      const csv = "\uFEFF" + rows.map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    function exportMonthlySummaryCSV() {
+      const months = getMonthsForYear(selectedYear);
+      const rows = [["月份", "许昌市(mm)", "许昌市降雨天数", "襄城县(mm)", "襄城县降雨天数", "闵行区(mm)", "闵行区降雨天数"]];
+      months.forEach(ym => {
+        const a = aggregateMonth(ym);
+        rows.push([
+          ym,
+          a.xuchang.total_mm, a.xuchang.rain_days,
+          a.xiangcheng.total_mm, a.xiangcheng.rain_days,
+          a.minhang.total_mm, a.minhang.rain_days,
+        ]);
+      });
+      downloadCSV(`rainfall_monthly_${selectedYear}.csv`, rows);
+    }
+
+    function exportSelectedMonthDailyCSV() {
+      if (!selectedMonth) return;
+      const dates = getDatesForMonth(selectedMonth);
+      const rows = [["日期", "许昌市(mm)", "许昌市等级", "襄城县(mm)", "襄城县等级", "闵行区(mm)", "闵行区等级"]];
+      dates.forEach(d => {
+        const rec = rawData.records?.[d] || {};
+        rows.push([
+          d,
+          rec.xuchang ? rec.xuchang.total_mm : "", rec.xuchang ? rec.xuchang.level : "",
+          rec.xiangcheng ? rec.xiangcheng.total_mm : "", rec.xiangcheng ? rec.xiangcheng.level : "",
+          rec.minhang ? rec.minhang.total_mm : "", rec.minhang ? rec.minhang.level : "",
+        ]);
+      });
+      downloadCSV(`rainfall_${selectedMonth}.csv`, rows);
+    }
+
+    window.addEventListener("resize", () => {
+      Object.values(charts).forEach(c => c && c.resize());
+    });
+
+    // Auto-login using shared localStorage credentials
+    (async function boot() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (!saved || saved.mode !== "password" || !saved.password) return;
+        const data = await fetchEncryptedAndDecrypt(saved.password);
+        currentAuth = saved;
+        enterDashboard(data);
+      } catch {
+        // Stay on auth gate
+      }
+    })();
+  </script>
+</body>
+</html>

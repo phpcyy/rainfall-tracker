@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>降雨量监测看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-soft: #263449;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --xuchang: #38bdf8;
+      --xiangcheng: #34d399;
+      --minhang: #a78bfa;
+      --danger: #f87171;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top left, #172554 0%, var(--bg) 52%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Auth Gate */
+    .auth-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 460px;
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+    }
+
+    .auth-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--surface-soft);
+      color: var(--text);
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+    .field input:focus { border-color: var(--accent); }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: #fff;
+      width: 100%;
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    .btn-ghost {
+      background: var(--surface-soft);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      padding: 7px 12px;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .auth-footer {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .error-msg {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.14);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+      font-size: 13px;
+      display: none;
+    }
+
+    /* Main App */
+    .app {
+      display: none;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 20px 16px 48px;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .toolbar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .range-group, .city-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .preset-btn.active, .preset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    input[type="date"] {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 13px;
+      color-scheme: dark;
+    }
+
+    .city-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .city-pill.active { border-color: currentColor; }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-accent, var(--accent));
+    }
+
+    .kpi-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .kpi-city { font-size: 15px; font-weight: 700; }
+    .kpi-sub { font-size: 12px; color: var(--muted); }
+
+    .kpi-main {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .kpi-main span {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .kpi-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      font-size: 12px;
+    }
+    .kpi-stats .label { color: var(--muted); display: block; }
+    .kpi-stats .val { font-weight: 600; margin-top: 2px; }
+
+    /* Charts */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .chart-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .chart-title { font-size: 15px; font-weight: 700; }
+    .chart-hint { font-size: 12px; color: var(--muted); }
+
+    .chart-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .chart-box { width: 100%; height: 340px; }
+    .chart-box-sm { width: 100%; height: 300px; }
+
+    select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 13px;
+    }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    th { color: var(--muted); font-weight: 600; background: rgba(15, 23, 42, 0.5); }
+    tr:hover td { background: rgba(56, 189, 248, 0.05); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .lv-none { background: #334155; color: #cbd5e1; }
+    .lv-light { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; }
+    .lv-moderate { background: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
+    .lv-heavy { background: rgba(251, 191, 36, 0.2); color: #fde68a; }
+    .lv-storm { background: rgba(248, 113, 113, 0.25); color: #fca5a5; }
+
+    .muted-sm { color: var(--muted); font-size: 11px; margin-left: 4px; }
+
+    @media (max-width: 640px) {
+      .chart-grid-2 { grid-template-columns: 1fr; }
+      .chart-box { height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Gate -->
+  <div id="authGate" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-title">🌧️ 降雨量数据看板</div>
+      <div class="auth-subtitle">数据经 AES-256-GCM 加密保护，请输入访问密码解锁查看</div>
+
+      <!-- Password Decrypt data.enc.json -->
+      <form id="passwordForm" onsubmit="loginWithPassword(event)">
+        <div class="field">
+          <label for="encPassword">访问密码</label>
+          <input id="encPassword" type="password" placeholder="请输入访问密码" autocomplete="current-password" required />
+        </div>
+        <label class="checkbox-row">
+          <input id="pwdRemember" type="checkbox" checked />
+          在当前浏览器记住密码（仅存于本地 localStorage）
+        </label>
+        <button type="submit" class="btn btn-primary" id="pwdSubmitBtn">解锁查看</button>
+      </form>
+
+      <div id="authError" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="app" class="app">
+    <div class="header">
+      <div>
+        <h1>🌧️ 降雨量统计与分布看板</h1>
+        <div class="header-meta" id="metaInfo">数据来源：中国天气网（每日 08:00 / 20:00 自动采集去重）</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" onclick="refreshData()">↻ 刷新</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇ 导出 CSV</button>
+        <button class="btn btn-ghost" onclick="logout()">退出 / 清除凭证</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="range-group">
+        <button class="preset-btn" data-days="7" onclick="applyPreset(7)">近 7 天</button>
+        <button class="preset-btn active" data-days="14" onclick="applyPreset(14)">近 14 天</button>
+        <button class="preset-btn" data-days="30" onclick="applyPreset(30)">近 30 天</button>
+        <button class="preset-btn" data-days="0" onclick="applyPreset(0)">全部</button>
+        <input type="date" id="startDate" onchange="onCustomDateChange()" />
+        <span style="color:var(--muted);">至</span>
+        <input type="date" id="endDate" onchange="onCustomDateChange()" />
+      </div>
+
+      <div class="city-group" id="cityToggles"></div>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">每日降雨量对比（mm）</div>
+          <div class="chart-hint">点击任意日期柱子，下方“24小时分布图”将同步切换到该日详情</div>
+        </div>
+      </div>
+      <div id="dailyChart" class="chart-box"></div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card" style="margin-bottom:0;">
+        <div class="chart-head">
+          <div class="chart-title">所选区间降雨总量占比</div>
+        </div>
+        <div id="shareChart" class="chart-box-sm"></div>
+      </div>
+
+      <div class="chart-card" style="margin-bottom:0;">
+        <div class="chart-head">
+          <div class="chart-title">降雨等级天数分布</div>
+          <div class="chart-hint">中国气象局 24h 降雨分级标准</div>
+        </div>
+        <div id="levelChart" class="chart-box-sm"></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">24 小时时段降雨分布（mm）</div>
+          <div class="chart-hint">可查看整个所选区间的各时段累计雨量，或查看指定单日的逐小时降雨</div>
+        </div>
+        <select id="hourlyDateSelect" onchange="renderHourlyChart()"></select>
+      </div>
+      <div id="hourlyChart" class="chart-box"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title">每日明细记录</div>
+        <div class="chart-hint" id="tableCountHint"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>许昌市</th>
+              <th>襄城县</th>
+              <th>闵行区</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "rainfall_auth_v1";
+    const CITY_ORDER = ["xuchang", "xiangcheng", "minhang"];
+    const CITY_META = {
+      xuchang: { name: "许昌市", color: "#38bdf8" },
+      xiangcheng: { name: "襄城县", color: "#34d399" },
+      minhang: { name: "闵行区", color: "#a78bfa" },
+    };
+    const LEVELS = ["无雨", "小雨", "中雨", "大雨", "暴雨", "大暴雨", "特大暴雨"];
+
+    let rawData = null;
+    let activeCities = new Set(CITY_ORDER);
+    let currentAuth = null;
+    let charts = {};
+
+    function showAuthError(msg) {
+      const el = document.getElementById("authError");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function clearAuthError() {
+      const el = document.getElementById("authError");
+      el.textContent = "";
+      el.style.display = "none";
+    }
+
+    function switchAuthTab(tab) {
+      clearAuthError();
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tab);
+      });
+      document.getElementById("githubForm").style.display = tab === "github" ? "block" : "none";
+      document.getElementById("passwordForm").style.display = tab === "password" ? "block" : "none";
+    }
+
+    function b64ToBytes(b64) {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    async function decryptBundle(bundle, password) {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        "PBKDF2",
+        false,
+        ["deriveKey"]
+      );
+      const aesKey = await crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: b64ToBytes(bundle.salt),
+          iterations: bundle.iterations || 200000,
+          hash: "SHA-256",
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      const plainBuf = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: b64ToBytes(bundle.iv) },
+        aesKey,
+        b64ToBytes(bundle.ciphertext)
+      );
+      return JSON.parse(new TextDecoder().decode(plainBuf));
+    }
+
+    async function fetchFromGitHub(repo, branch, token) {
+      const url = `https://api.github.com/repos/${repo.trim()}/contents/data/daily.json?ref=${encodeURIComponent(branch.trim())}&t=${Date.now()}`;
+      const resp = await fetch(url, {
+        headers: {
+          Accept: "application/vnd.github.raw+json",
+          Authorization: `Bearer ${token.trim()}`,
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      });
+      if (!resp.ok) {
+        if (resp.status === 401) throw new Error("Token 无效或已过期，请检查权限配置。");
+        if (resp.status === 404) throw new Error("未找到仓库或 data/daily.json，请检查仓库名、分支名及 Token 是否已授权该仓库。");
+        throw new Error(`GitHub API 请求失败（HTTP ${resp.status}）`);
+      }
+      return await resp.json();
+    }
+
+    async function fetchEncryptedAndDecrypt(password) {
+      const resp = await fetch(`./data.enc.json?t=${Date.now()}`);
+      if (!resp.ok) {
+        throw new Error("未找到加密数据包 docs/data.enc.json，请确认已在 GitHub Secrets 中配置 DATA_ENCRYPT_PASSWORD。");
+      }
+      const bundle = await resp.json();
+      try {
+        return await decryptBundle(bundle, password);
+      } catch {
+        throw new Error("访问密码错误，无法解密数据。");
+      }
+    }
+
+    async function loginWithGitHub(event) {
+      event.preventDefault();
+      clearAuthError();
+      const repo = document.getElementById("ghRepo").value.trim();
+      const branch = document.getElementById("ghBranch").value.trim() || "main";
+      const token = document.getElementById("ghToken").value.trim();
+      const remember = document.getElementById("ghRemember").checked;
+      const btn = document.getElementById("ghSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "正在验证...";
+      try {
+        const data = await fetchFromGitHub(repo, branch, token);
+        currentAuth = { mode: "github", repo, branch, token };
+        if (remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(currentAuth));
+        else localStorage.removeItem(STORAGE_KEY);
+        enterDashboard(data);
+      } catch (err) {
+        showAuthError(err.message || String(err));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "验证并加载数据";
+      }
+    }
+
+    async function loginWithPassword(event) {
+      event.preventDefault();
+      clearAuthError();
+      const password = document.getElementById("encPassword").value;
+      const remember = document.getElementById("pwdRemember").checked;
+      const btn = document.getElementById("pwdSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "正在解密...";
+      try {
+        const data = await fetchEncryptedAndDecrypt(password);
+        currentAuth = { mode: "password", password };
+        if (remember) localStorage.setItem(STORAGE_KEY, JSON.stringify(currentAuth));
+        else localStorage.removeItem(STORAGE_KEY);
+        enterDashboard(data);
+      } catch (err) {
+        showAuthError(err.message || String(err));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "解锁查看";
+      }
+    }
+
+    async function loadLocalFile() {
+      clearAuthError();
+      try {
+        const resp = await fetch(`../data/daily.json?t=${Date.now()}`);
+        if (!resp.ok) throw new Error(`读取失败（HTTP ${resp.status}），请通过本地 HTTP 服务打开（例如 python3 -m http.server）`);
+        const data = await resp.json();
+        currentAuth = { mode: "local" };
+        enterDashboard(data);
+      } catch (err) {
+        showAuthError(err.message || String(err));
+      }
+    }
+
+    async function refreshData() {
+      if (!currentAuth) return;
+      try {
+        let data;
+        if (currentAuth.mode === "github") {
+          data = await fetchFromGitHub(currentAuth.repo, currentAuth.branch, currentAuth.token);
+        } else if (currentAuth.mode === "password") {
+          data = await fetchEncryptedAndDecrypt(currentAuth.password);
+        } else {
+          const resp = await fetch(`../data/daily.json?t=${Date.now()}`);
+          data = await resp.json();
+        }
+        rawData = data;
+        updateMetaInfo();
+        renderAll();
+      } catch (err) {
+        alert("刷新失败：" + (err.message || String(err)));
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem(STORAGE_KEY);
+      currentAuth = null;
+      rawData = null;
+      document.getElementById("app").style.display = "none";
+      document.getElementById("authGate").style.display = "flex";
+    }
+
+    function enterDashboard(data) {
+      rawData = data;
+      document.getElementById("authGate").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      initCityToggles();
+      updateMetaInfo();
+      applyPreset(14);
+    }
+
+    function updateMetaInfo() {
+      const dates = rawData.dates || [];
+      const span = dates.length ? `${dates[0]} 至 ${dates[dates.length - 1]}（共 ${dates.length} 天）` : "暂无数据";
+      document.getElementById("metaInfo").textContent =
+        `最后更新：${rawData.updated_at || "-"} ｜ 历史范围：${span}`;
+    }
+
+    function initCityToggles() {
+      const container = document.getElementById("cityToggles");
+      container.innerHTML = "";
+      CITY_ORDER.forEach(key => {
+        const meta = CITY_META[key];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "city-pill" + (activeCities.has(key) ? " active" : "");
+        btn.style.color = activeCities.has(key) ? meta.color : "var(--muted)";
+        btn.innerHTML = `<span class="dot" style="background:${meta.color}"></span>${meta.name}`;
+        btn.onclick = () => {
+          if (activeCities.has(key) && activeCities.size === 1) return;
+          if (activeCities.has(key)) activeCities.delete(key);
+          else activeCities.add(key);
+          initCityToggles();
+          renderAll();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function applyPreset(days) {
+      document.querySelectorAll(".preset-btn").forEach(b => {
+        b.classList.toggle("active", Number(b.dataset.days) === days);
+      });
+      const dates = rawData.dates || [];
+      if (!dates.length) return;
+      const end = dates[dates.length - 1];
+      let start = dates[0];
+      if (days > 0) {
+        const endDt = new Date(end + "T00:00:00");
+        endDt.setDate(endDt.getDate() - (days - 1));
+        const calcStart = endDt.toISOString().slice(0, 10);
+        start = calcStart > dates[0] ? calcStart : dates[0];
+      }
+      document.getElementById("startDate").value = start;
+      document.getElementById("endDate").value = end;
+      renderAll();
+    }
+
+    function onCustomDateChange() {
+      document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+      renderAll();
+    }
+
+    function getFilteredDates() {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      return (rawData.dates || []).filter(d => (!start || d >= start) && (!end || d <= end));
+    }
+
+    function getLevelClass(level) {
+      if (level === "无雨") return "lv-none";
+      if (level === "小雨") return "lv-light";
+      if (level === "中雨") return "lv-moderate";
+      if (level === "大雨") return "lv-heavy";
+      return "lv-storm";
+    }
+
+    function getChart(id) {
+      if (!charts[id]) {
+        charts[id] = echarts.init(document.getElementById(id));
+      }
+      return charts[id];
+    }
+
+    function renderAll() {
+      const dates = getFilteredDates();
+      renderKPIs(dates);
+      renderDailyChart(dates);
+      renderShareAndLevelCharts(dates);
+      populateHourlySelect(dates);
+      renderHourlyChart();
+      renderTable(dates);
+    }
+
+    function renderKPIs(dates) {
+      const grid = document.getElementById("kpiGrid");
+      grid.innerHTML = "";
+      CITY_ORDER.filter(c => activeCities.has(c)).forEach(cityKey => {
+        const meta = CITY_META[cityKey];
+        let total = 0;
+        let rainDays = 0;
+        let rainHours = 0;
+        let maxDayVal = 0;
+        let maxDayDate = "-";
+        let totalRecordedHours = 0;
+
+        dates.forEach(d => {
+          const rec = rawData.records?.[d]?.[cityKey];
+          if (!rec) return;
+          total += rec.total_mm || 0;
+          if ((rec.total_mm || 0) > 0) rainDays += 1;
+          rainHours += rec.rain_hours || 0;
+          totalRecordedHours += rec.recorded_hours || 0;
+          if ((rec.total_mm || 0) >= maxDayVal && (rec.total_mm || 0) > 0) {
+            maxDayVal = rec.total_mm;
+            maxDayDate = d;
+          }
+        });
+
+        const maxPossibleHours = Math.max(dates.length * 24, 1);
+        const coverage = Math.min(100, Math.round((totalRecordedHours / maxPossibleHours) * 100));
+
+        const card = document.createElement("div");
+        card.className = "kpi-card";
+        card.style.setProperty("--card-accent", meta.color);
+        card.innerHTML = `
+          <div class="kpi-head">
+            <div class="kpi-city">${meta.name}</div>
+            <div class="kpi-sub">完整度 ${coverage}%</div>
+          </div>
+          <div class="kpi-main">${total.toFixed(1)}<span>mm</span></div>
+          <div class="kpi-stats">
+            <div><span class="label">降雨天数</span><div class="val">${rainDays} / ${dates.length} 天</div></div>
+            <div><span class="label">降雨小时</span><div class="val">${rainHours} 小时</div></div>
+            <div><span class="label">单日峰值</span><div class="val">${maxDayVal > 0 ? maxDayVal.toFixed(1) + " mm" : "0 mm"}<div style="font-size:10px;color:var(--muted);font-weight:400;">${maxDayDate}</div></div></div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderDailyChart(dates) {
+      const chart = getChart("dailyChart");
+      const series = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => ({
+        name: CITY_META[cityKey].name,
+        type: "bar",
+        barMaxWidth: 26,
+        itemStyle: { color: CITY_META[cityKey].color, borderRadius: [4, 4, 0, 0] },
+        data: dates.map(d => rawData.records?.[d]?.[cityKey]?.total_mm ?? 0),
+      }));
+
+      chart.setOption({
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          backgroundColor: "#0f172a",
+          borderColor: "#334155",
+          textStyle: { color: "#f1f5f9" },
+          formatter: params => {
+            const d = params[0]?.axisValue;
+            let html = `<div style="font-weight:700;margin-bottom:6px;">${d}</div>`;
+            params.forEach(p => {
+              const cityKey = CITY_ORDER.find(k => CITY_META[k].name === p.seriesName);
+              const rec = rawData.records?.[d]?.[cityKey];
+              const extra = rec ? `（${rec.level}，峰值 ${rec.max_hourly_mm}mm/h，${rec.recorded_hours}h）` : "";
+              html += `<div>${p.marker}${p.seriesName}: <b>${Number(p.value).toFixed(1)} mm</b> <span style="color:#94a3b8;font-size:11px;">${extra}</span></div>`;
+            });
+            return html;
+          },
+        },
+        legend: { top: 0, textStyle: { color: "#cbd5e1" } },
+        grid: { left: 46, right: 20, top: 40, bottom: 36 },
+        xAxis: {
+          type: "category",
+          data: dates,
+          axisLine: { lineStyle: { color: "#475569" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        yAxis: {
+          type: "value",
+          name: "mm",
+          nameTextStyle: { color: "#94a3b8" },
+          splitLine: { lineStyle: { color: "#263449" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        series,
+      }, true);
+
+      chart.off("click");
+      chart.on("click", params => {
+        if (params.name) {
+          document.getElementById("hourlyDateSelect").value = params.name;
+          renderHourlyChart();
+        }
+      });
+    }
+
+    function renderShareAndLevelCharts(dates) {
+      // Share Pie
+      const shareChart = getChart("shareChart");
+      const pieData = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => {
+        const sum = dates.reduce((acc, d) => acc + (rawData.records?.[d]?.[cityKey]?.total_mm || 0), 0);
+        return {
+          name: CITY_META[cityKey].name,
+          value: Number(sum.toFixed(2)),
+          itemStyle: { color: CITY_META[cityKey].color },
+        };
+      });
+
+      const hasAnyRain = pieData.some(x => x.value > 0);
+      shareChart.setOption({
+        backgroundColor: "transparent",
+        tooltip: { trigger: "item", formatter: "{b}: {c} mm ({d}%)" },
+        legend: { bottom: 0, textStyle: { color: "#cbd5e1" } },
+        title: hasAnyRain ? undefined : {
+          text: "所选区间暂无降雨",
+          left: "center",
+          top: "center",
+          textStyle: { color: "#64748b", fontSize: 14, fontWeight: 500 },
+        },
+        series: [{
+          type: "pie",
+          radius: ["45%", "72%"],
+          center: ["50%", "44%"],
+          label: { color: "#e2e8f0", formatter: "{b}\n{c}mm" },
+          data: hasAnyRain ? pieData : [],
+        }],
+      }, true);
+
+      // Level Distribution Bar
+      const levelChart = getChart("levelChart");
+      const compactLevels = ["无雨", "小雨", "中雨", "大雨", "暴雨+"];
+      const levelSeries = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => {
+        const counts = { "无雨": 0, "小雨": 0, "中雨": 0, "大雨": 0, "暴雨+": 0 };
+        dates.forEach(d => {
+          const lv = rawData.records?.[d]?.[cityKey]?.level;
+          if (!lv) return;
+          if (lv === "暴雨" || lv === "大暴雨" || lv === "特大暴雨") counts["暴雨+"] += 1;
+          else if (counts[lv] !== undefined) counts[lv] += 1;
+        });
+        return {
+          name: CITY_META[cityKey].name,
+          type: "bar",
+          barMaxWidth: 20,
+          itemStyle: { color: CITY_META[cityKey].color, borderRadius: [4, 4, 0, 0] },
+          data: compactLevels.map(l => counts[l]),
+        };
+      });
+
+      levelChart.setOption({
+        backgroundColor: "transparent",
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        legend: { bottom: 0, textStyle: { color: "#cbd5e1" } },
+        grid: { left: 36, right: 16, top: 20, bottom: 44 },
+        xAxis: {
+          type: "category",
+          data: compactLevels,
+          axisLine: { lineStyle: { color: "#475569" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        yAxis: {
+          type: "value",
+          minInterval: 1,
+          splitLine: { lineStyle: { color: "#263449" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        series: levelSeries,
+      }, true);
+    }
+
+    function populateHourlySelect(dates) {
+      const sel = document.getElementById("hourlyDateSelect");
+      const prev = sel.value;
+      sel.innerHTML = `<option value="__ALL__">所选区间累计时段分布（${dates.length} 天）</option>`;
+      [...dates].reverse().forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = `${d} 逐小时分布`;
+        sel.appendChild(opt);
+      });
+      if (prev && [...sel.options].some(o => o.value === prev)) {
+        sel.value = prev;
+      } else {
+        sel.value = "__ALL__";
+      }
+    }
+
+    function renderHourlyChart() {
+      const chart = getChart("hourlyChart");
+      const selected = document.getElementById("hourlyDateSelect").value;
+      const dates = selected === "__ALL__" ? getFilteredDates() : [selected];
+      const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0") + ":00");
+
+      const series = CITY_ORDER.filter(c => activeCities.has(c)).map(cityKey => {
+        const vals = Array(24).fill(0);
+        dates.forEach(d => {
+          const arr = rawData.records?.[d]?.[cityKey]?.hourly || [];
+          for (let h = 0; h < 24; h++) {
+            if (typeof arr[h] === "number") vals[h] += arr[h];
+          }
+        });
+        return {
+          name: CITY_META[cityKey].name,
+          type: "line",
+          smooth: 0.25,
+          symbolSize: 6,
+          lineStyle: { width: 2.5, color: CITY_META[cityKey].color },
+          itemStyle: { color: CITY_META[cityKey].color },
+          areaStyle: { opacity: 0.12, color: CITY_META[cityKey].color },
+          data: vals.map(v => Number(v.toFixed(2))),
+        };
+      });
+
+      chart.setOption({
+        backgroundColor: "transparent",
+        tooltip: { trigger: "axis" },
+        legend: { top: 0, textStyle: { color: "#cbd5e1" } },
+        grid: { left: 46, right: 20, top: 40, bottom: 32 },
+        xAxis: {
+          type: "category",
+          data: hours,
+          axisLine: { lineStyle: { color: "#475569" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        yAxis: {
+          type: "value",
+          name: "mm",
+          nameTextStyle: { color: "#94a3b8" },
+          splitLine: { lineStyle: { color: "#263449" } },
+          axisLabel: { color: "#94a3b8" },
+        },
+        series,
+      }, true);
+    }
+
+    function renderTable(dates) {
+      const tbody = document.getElementById("detailTableBody");
+      tbody.innerHTML = "";
+      document.getElementById("tableCountHint").textContent = `共 ${dates.length} 天记录`;
+      [...dates].reverse().forEach(d => {
+        const tr = document.createElement("tr");
+        let html = `<td style="font-weight:600;">${d}</td>`;
+        CITY_ORDER.forEach(cityKey => {
+          const rec = rawData.records?.[d]?.[cityKey];
+          if (!rec) {
+            html += `<td class="muted-sm">-</td>`;
+          } else {
+            html += `<td>
+              <b>${rec.total_mm.toFixed(1)} mm</b>
+              <span class="badge ${getLevelClass(rec.level)}">${rec.level}</span>
+              <span class="muted-sm">${rec.rain_hours}h雨 / ${rec.recorded_hours}h采</span>
+            </td>`;
+          }
+        });
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportCSV() {
+      const dates = getFilteredDates();
+      const rows = [["日期", "许昌市(mm)", "许昌市等级", "襄城县(mm)", "襄城县等级", "闵行区(mm)", "闵行区等级"]];
+      dates.forEach(d => {
+        const rec = rawData.records?.[d] || {};
+        rows.push([
+          d,
+          rec.xuchang ? rec.xuchang.total_mm : "",
+          rec.xuchang ? rec.xuchang.level : "",
+          rec.xiangcheng ? rec.xiangcheng.total_mm : "",
+          rec.xiangcheng ? rec.xiangcheng.level : "",
+          rec.minhang ? rec.minhang.total_mm : "",
+          rec.minhang ? rec.minhang.level : "",
+        ]);
+      });
+      const csv = "\uFEFF" + rows.map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `rainfall_${dates[0] || "all"}_${dates[dates.length - 1] || "all"}.csv`;
+      link.click();
+    }
+
+    window.addEventListener("resize", () => {
+      Object.values(charts).forEach(c => c && c.resize());
+    });
+
+    // Auto-login if saved credentials exist
+    (async function boot() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (!saved || saved.mode !== "password" || !saved.password) return;
+        const data = await fetchEncryptedAndDecrypt(saved.password);
+        currentAuth = saved;
+        enterDashboard(data);
+      } catch {
+        // Stay on auth gate if saved password fails
+      }
+    })();
+  </script>
+</body>
+</html>
